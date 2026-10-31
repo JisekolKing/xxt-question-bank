@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学习通课程题库助手</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="app__header">
+      <img
+        class="app__logo"
+        src="../icons/icon48.png"
+        alt=""
+        width="48"
+        height="48"
+      />
+      <div class="app__titles">
+        <h1 class="app__name">学习通课程题库助手</h1>
+        <p class="app__version">版本 <span id="version">—</span> · 第四阶段</p>
+      </div>
+      <a class="app__library-link" id="open-library" href="library.html" target="_blank">完整题库</a>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="功能切换">
+      <button
+        class="tab"
+        id="tab-recognize"
+        type="button"
+        role="tab"
+        aria-selected="true"
+        aria-controls="panel-recognize"
+      >
+        页面识别
+      </button>
+      <button
+        class="tab"
+        id="tab-questions"
+        type="button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-questions"
+        tabindex="-1"
+      >
+        题目预览
+        <span class="tab__badge" id="question-count-badge" hidden>0</span>
+      </button>
+      <button
+        class="tab"
+        id="tab-library"
+        type="button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-library"
+        tabindex="-1"
+      >
+        题库管理
+        <span class="tab__badge" id="pending-count-badge" hidden>0</span>
+      </button>
+      <button
+        class="tab"
+        id="tab-practice"
+        type="button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-practice"
+        tabindex="-1"
+      >
+        模拟练习
+      </button>
+    </nav>
+
+    <section
+      class="panel-view"
+      id="panel-recognize"
+      role="tabpanel"
+      aria-labelledby="tab-recognize"
+    >
+      <section class="status" aria-labelledby="status-title">
+        <span class="status__dot" aria-hidden="true"></span>
+        <div class="status__body">
+          <h2 class="status__title" id="status-title">第二阶段 · 答案识别已就绪</h2>
+          <p class="status__text">支持章节题库单选/多选与章节答案、作业单选/多选/判断；先识别页面，再到「题目预览」读取。</p>
+        </div>
+      </section>
+
+      <section class="recognizer" aria-labelledby="recognizer-title">
+        <div class="recognizer__head">
+          <h2 class="recognizer__title" id="recognizer-title">页面识别</h2>
+          <span class="recognizer__hint">仅在你点击后读取</span>
+        </div>
+
+        <button type="button" class="recognizer__button" id="detect-button">
+          <svg
+            class="recognizer__icon"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m20 20-3.5-3.5"></path>
+          </svg>
+          <span id="detect-button-label">识别当前页面</span>
+        </button>
+
+        <p class="recognizer__empty" id="recognizer-empty">
+          尚未识别。点击按钮后，将读取当前标签页的网址、标题和少量可见文字，用于判断页面类型与课程名称。
+        </p>
+
+        <div class="result" id="result" aria-live="polite" hidden>
+          <div class="result__head">
+            <span class="chip chip--muted" id="result-site">—</span>
+            <span class="result__type" id="result-type">—</span>
+            <span class="result__confidence" id="result-confidence" hidden></span>
+          </div>
+
+          <dl class="result__list">
+            <div class="result__row">
+              <dt>课程</dt>
+              <dd id="result-course">—</dd>
+            </div>
+            <div class="result__row">
+              <dt>章节</dt>
+              <dd id="result-chapter">—</dd>
+            </div>
+            <div class="result__row">
+              <dt>标题</dt>
+              <dd id="result-title">—</dd>
+            </div>
+            <div class="result__row">
+              <dt>网址</dt>
+              <dd id="result-url">—</dd>
+            </div>
+          </dl>
+
+          <p class="result__note" id="result-note"></p>
+          <p class="result__evidence" id="result-evidence"></p>
+        </div>
+
+        <p class="recognizer__error" id="recognizer-error" role="alert" hidden></p>
+      </section>
+
+      <details class="progress">
+        <summary class="progress__summary">
+          <span>开发进度</span>
+          <span class="progress__count">4 / 5</span>
+        </summary>
+        <ul class="checklist">
+          <li class="checklist__item checklist__item--done">扩展清单与图标</li>
+          <li class="checklist__item checklist__item--done">插件弹窗界面</li>
+          <li class="checklist__item checklist__item--done">网页识别</li>
+          <li class="checklist__item checklist__item--done">单选题提取</li>
+          <li class="checklist__item">本地题库与导出</li>
+        </ul>
+      </details>
+
+      <p class="privacy">
+        只在点击按钮后读取当前标签页的可见内容，包括作业/章节页已展示的答案；不读取隐藏答案、Cookie、账号密码或登录令牌，不向任何服务器发送数据，不自动提交。
+      </p>
+    </section>
+
+    <section
+      class="panel-view"
+      id="panel-questions"
+      role="tabpanel"
+      aria-labelledby="tab-questions"
+      hidden
+    >
+      <section class="recognizer extractor" aria-labelledby="extractor-title">
+        <div class="recognizer__head">
+          <h2 class="recognizer__title" id="extractor-title">题目提取</h2>
+          <span class="recognizer__hint">仅当前页面</span>
+        </div>
+
+        <button type="button" class="recognizer__button" id="extract-button">
+          <svg
+            class="recognizer__icon"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <path d="M14 2v6h6"></path>
+            <path d="M8 13h8"></path>
+            <path d="M8 17h5"></path>
+          </svg>
+          <span id="extract-button-label">读取当前页面题目</span>
+        </button>
+
+        <p class="recognizer__empty" id="extract-empty">
+          点击按钮后读取当前页面已展示的题目，以及作业页已展示的我的答案、正确答案、对错和分数；不会自动保存或自动提交。
+        </p>
+
+        <p class="recognizer__error" id="extract-error" role="alert" hidden></p>
+      </section>
+
+      <div class="extract-result" id="extract-result" aria-live="polite" hidden>
+        <div class="extract-summary">
+          <div class="extract-summary__top">
+            <span class="extract-count" id="extract-count">0 道题目</span>
+            <span class="chip chip--ok" id="extract-page-type">学习通</span>
+          </div>
+          <p class="extract-meta" id="extract-meta"></p>
+          <p class="extract-note" id="extract-note"></p>
+        </div>
+        <div class="question-list" id="question-list"></div>
+      </div>
+
+      <section class="save-card" id="save-panel" aria-labelledby="save-title" hidden>
+        <div class="library-card__head">
+          <h2 class="recognizer__title" id="save-title">保存到本地题库</h2>
+          <span class="recognizer__hint">先确认摘要</span>
+        </div>
+        <p class="save-summary" id="save-summary"></p>
+        <p class="save-status" id="save-status" role="status" hidden></p>
+        <button type="button" class="recognizer__button" id="save-extract-button">
+          <span id="save-extract-label">保存本次解析结果</span>
+        </button>
+        <div class="row-actions">
+          <button type="button" class="secondary-button" id="save-extract-file-button">
+            导出本次解析 JSON
+          </button>
+          <button type="button" class="secondary-button" id="save-unverified-button">
+            宽松保存（未验证）
+          </button>
+        </div>
+      </section>
+    </section>
+
+    <section
+      class="panel-view"
+      id="panel-library"
+      role="tabpanel"
+      aria-labelledby="tab-library"
+      hidden
+    >
+      <section class="library-card" aria-labelledby="library-title">
+        <div class="library-card__head">
+          <h2 class="recognizer__title" id="library-title">本地题库</h2>
+          <button type="button" class="link-button" id="library-refresh">刷新</button>
+        </div>
+        <p class="library-status" id="library-status">尚未读取本地题库。</p>
+        <p class="library-warning" id="library-warning" role="alert" hidden></p>
+        <button type="button" class="secondary-button" id="library-rebuild" hidden>
+          重建索引
+        </button>
+
+        <div class="library-selects">
+          <label class="field-label">
+            课程
+            <select class="select" id="library-course"></select>
+          </label>
+          <label class="field-label">
+            章节
+            <select class="select" id="library-chapter"></select>
+          </label>
+        </div>
+
+        <div class="library-questions" id="library-questions">
+          <p class="question-empty">选择课程和章节后查看题目。</p>
+        </div>
+        <button type="button" class="danger-button" id="delete-chapter-button" hidden>
+          删除当前章节
+        </button>
+      </section>
+
+      <section class="library-card" aria-labelledby="pending-title">
+        <div class="library-card__head">
+          <h2 class="recognizer__title" id="pending-title">待确认题目</h2>
+          <button type="button" class="link-button" id="pending-refresh">刷新</button>
+        </div>
+        <p class="library-status" id="pending-status">尚未读取待确认题目。</p>
+        <div class="pending-list" id="pending-list"></div>
+
+        <div class="pending-confirm" id="pending-confirm" hidden>
+          <p class="pending-confirm__title" id="pending-confirm-title"></p>
+          <label class="field-label">
+            目标课程
+            <select class="select" id="pending-course"></select>
+          </label>
+          <label class="field-label">
+            目标章节
+            <select class="select" id="pending-chapter"></select>
+          </label>
+          <p class="library-warning" id="pending-confirm-warning" hidden></p>
+          <div class="row-actions">
+            <button type="button" class="secondary-button" id="pending-cancel">取消</button>
+            <button type="button" class="recognizer__button" id="pending-confirm-button">
+              人工确认并入库
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="library-card" aria-labelledby="backup-title">
+        <div class="library-card__head">
+          <h2 class="recognizer__title" id="backup-title">JSON 备份与恢复</h2>
+        </div>
+        <p class="library-warning">
+          浏览器本地存储不是事务数据库。恢复失败时可能留下部分数据；导入前请先导出备份。
+        </p>
+        <div class="row-actions">
+          <button type="button" class="secondary-button" id="export-button">导出 JSON</button>
+          <label class="secondary-button file-button">
+            选择 JSON 文件
+            <input type="file" id="import-file" accept=".json,application/json" hidden />
+          </label>
+        </div>
+        <p class="backup-preview" id="backup-preview" hidden></p>
+        <button type="button" class="recognizer__button" id="import-confirm-button" hidden>
+          确认导入备份
+        </button>
+        <p class="library-status" id="backup-status" role="status"></p>
+      </section>
+    </section>
+
+    <section
+      class="panel-view"
+      id="panel-practice"
+      role="tabpanel"
+      aria-labelledby="tab-practice"
+      hidden
+    >
+      <section class="library-card" id="practice-setup" aria-labelledby="practice-title">
+        <div class="library-card__head">
+          <h2 class="recognizer__title" id="practice-title">模拟练习</h2>
+          <button type="button" class="link-button" id="practice-refresh">刷新题库</button>
+        </div>
+        <p class="library-status" id="practice-status">选择课程和章节后开始练习。</p>
+        <div class="library-selects">
+          <label class="field-label">
+            课程
+            <select class="select" id="practice-course"></select>
+          </label>
+          <label class="field-label">
+            章节
+            <select class="select" id="practice-chapter"></select>
+          </label>
+        </div>
+        <label class="field-label">
+          练习模式
+          <select class="select" id="practice-mode">
+            <option value="sequential">顺序练习</option>
+            <option value="random">随机练习</option>
+          </select>
+        </label>
+        <button type="button" class="recognizer__button" id="practice-start" disabled>
+          开始练习
+        </button>
+      </section>
+
+      <section class="library-card" id="practice-session" hidden>
+        <div class="practice-progress">
+          <span id="practice-progress-text">第 1 / 1 题</span>
+          <span id="practice-progress-remaining"></span>
+        </div>
+        <div id="practice-question"></div>
+        <p class="practice-feedback" id="practice-feedback" hidden></p>
+        <div class="row-actions">
+          <button type="button" class="recognizer__button" id="practice-submit">
+            提交答案
+          </button>
+          <button type="button" class="secondary-button" id="practice-next" hidden>
+            下一题
+          </button>
+          <button type="button" class="secondary-button" id="practice-quit">
+            退出练习
+          </button>
+        </div>
+      </section>
+
+      <section class="library-card" id="practice-summary" hidden>
+        <h2 class="recognizer__title">练习总结</h2>
+        <p class="practice-summary" id="practice-summary-text"></p>
+        <div class="row-actions">
+          <button type="button" class="recognizer__button" id="practice-restart">
+            再练一次
+          </button>
+          <button type="button" class="secondary-button" id="practice-back">
+            返回题库
+          </button>
+        </div>
+      </section>
+    </section>
+
+    <footer class="app__footer">
+      <span id="browser">检测中…</span>
+      <span aria-hidden="true">·</span>
+      <span>本地存储 <span id="storage">检测中…</span></span>
+    </footer>
+  </main>
+
+  <script src="classifier.js"></script>
+  <script src="course-index.js"></script>
+  <script src="course-context.js"></script>
+  <script src="question-bank.js"></script>
+  <script src="question-bank-storage.js"></script>
+  <script src="practice.js"></script>
+  <script src="../content/snapshot.js"></script>
+  <script src="../content/question-parser.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

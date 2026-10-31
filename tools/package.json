@@ -1,0 +1,29 @@
+{
+  "name": "chaoxing-question-bank-tools",
+  "private": true,
+  "version": "0.1.0",
+  "description": "开发测试工具，不参与浏览器扩展运行",
+  "scripts": {
+    "test": "node test-recognition.js && node test-question-parser.js && node test-cxsecret.js && node test-course-context.js && node test-course-index.js && node test-course-routing.js && node test-chapter-study.js && node test-popup-timeout.js && node test-answer-ui.js && node test-judgment-merge.js && node test-chapter-identity.js && node test-question-dedupe.js && node test-question-bank.js && node test-question-bank-storage.js && node test-question-bank-ui.js && node test-practice.js && node test-library-page.js",
+    "test:recognition": "node test-recognition.js",
+    "test:parser": "node test-question-parser.js",
+    "test:cxsecret": "node test-cxsecret.js",
+    "test:course-context": "node test-course-context.js",
+    "test:course-index": "node test-course-index.js",
+    "test:course-routing": "node test-course-routing.js",
+    "test:chapter-study": "node test-chapter-study.js",
+    "test:popup-timeout": "node test-popup-timeout.js",
+    "test:answer-ui": "node test-answer-ui.js",
+    "test:judgment-merge": "node test-judgment-merge.js",
+    "test:chapter-identity": "node test-chapter-identity.js",
+    "test:question-dedupe": "node test-question-dedupe.js",
+    "test:question-bank": "node test-question-bank.js",
+    "test:question-bank-storage": "node test-question-bank-storage.js",
+    "test:question-bank-ui": "node test-question-bank-ui.js",
+    "test:practice": "node test-practice.js",
+    "test:library-page": "node test-library-page.js"
+  },
+  "devDependencies": {
+    "linkedom": "0.18.14"
+  }
+}

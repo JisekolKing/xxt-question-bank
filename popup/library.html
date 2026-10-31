@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学习通题库 · 完整题库</title>
+  <link rel="stylesheet" href="library.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="../icons/icon48.png" alt="" width="38" height="38" />
+      <div>
+        <h1>学习通题库</h1>
+        <p>完整题库 · 读题 · 练习 · 备份</p>
+      </div>
+    </div>
+    <nav class="main-nav" aria-label="主导航">
+      <button class="nav-button is-active" data-view="questions" type="button">题库</button>
+      <button class="nav-button" data-view="practice" type="button">模拟练习</button>
+      <button class="nav-button" data-view="pending" type="button">
+        待确认 <span class="nav-badge" id="pending-badge" hidden>0</span>
+      </button>
+      <button class="nav-button" data-view="backup" type="button">备份</button>
+    </nav>
+    <div class="topbar__status" id="global-status">正在读取本地题库…</div>
+  </header>
+
+  <main class="layout">
+    <section class="view is-active" id="view-questions">
+      <aside class="sidebar">
+        <div class="sidebar__head">
+          <h2>课程与章节</h2>
+          <button class="text-button" id="refresh-library" type="button">刷新</button>
+        </div>
+        <label class="search-field">
+          <span>搜索</span>
+          <input id="question-search" type="search" placeholder="题干、选项、章节…" />
+        </label>
+        <div class="course-list" id="course-list"></div>
+        <div class="chapter-list" id="chapter-list"></div>
+      </aside>
+
+      <section class="content">
+        <div class="content__head">
+          <div>
+            <p class="eyebrow">本地题库</p>
+            <h2 id="library-title">全部题目</h2>
+            <p class="content__meta" id="library-meta">尚未选择课程。</p>
+          </div>
+          <div class="content__tools">
+            <select id="type-filter" class="select" aria-label="题型筛选">
+              <option value="all">全部题型</option>
+              <option value="single_choice">单选题</option>
+              <option value="multiple_choice">多选题</option>
+              <option value="judgment">判断题</option>
+            </select>
+            <button class="secondary-button" id="rebuild-index" type="button" hidden>重建索引</button>
+          </div>
+        </div>
+        <div class="stats-row" id="library-stats"></div>
+        <div class="question-list" id="full-question-list"></div>
+      </section>
+    </section>
+
+    <section class="view" id="view-practice">
+      <div class="practice-layout">
+        <section class="panel practice-setup" id="practice-setup">
+          <p class="eyebrow">模拟练习</p>
+          <h2>选择练习范围</h2>
+          <div class="form-grid">
+            <label class="field">
+              <span>课程</span>
+              <select id="practice-course" class="select"></select>
+            </label>
+            <label class="field">
+              <span>章节</span>
+              <select id="practice-chapter" class="select"></select>
+            </label>
+            <label class="field">
+              <span>模式</span>
+              <select id="practice-mode" class="select">
+                <option value="sequential">顺序练习</option>
+                <option value="random">随机练习</option>
+              </select>
+            </label>
+          </div>
+          <button class="primary-button" id="practice-start" type="button" disabled>开始练习</button>
+          <p class="hint" id="practice-status">选择课程和章节后开始。</p>
+        </section>
+
+        <section class="panel practice-session" id="practice-session" hidden>
+          <div class="practice-head">
+            <span id="practice-progress">第 1 / 1 题</span>
+            <span id="practice-remaining"></span>
+          </div>
+          <div id="practice-question"></div>
+          <div class="feedback" id="practice-feedback" hidden></div>
+          <div class="actions">
+            <button class="primary-button" id="practice-submit" type="button">提交答案</button>
+            <button class="secondary-button" id="practice-next" type="button" hidden>下一题</button>
+            <button class="text-button" id="practice-quit" type="button">退出练习</button>
+          </div>
+        </section>
+
+        <section class="panel practice-summary" id="practice-summary" hidden>
+          <p class="eyebrow">练习完成</p>
+          <h2>练习总结</h2>
+          <div class="summary-grid" id="practice-summary-text"></div>
+          <div class="actions">
+            <button class="primary-button" id="practice-restart" type="button">再练一次</button>
+            <button class="secondary-button" id="practice-back" type="button">返回题库</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" id="view-pending">
+      <section class="panel">
+        <div class="panel__head">
+          <div>
+            <p class="eyebrow">待确认</p>
+            <h2>未证明章节归属的题目</h2>
+            <p class="hint">名称只作为建议，不会替代稳定 ID。确认后仍走正式入库门禁。</p>
+          </div>
+          <button class="text-button" id="pending-refresh" type="button">刷新</button>
+        </div>
+
+        <div class="target-grid">
+          <label class="field">
+            <span>目标课程</span>
+            <select id="pending-course" class="select"></select>
+          </label>
+          <label class="field">
+            <span>目标章节</span>
+            <select id="pending-chapter" class="select"></select>
+          </label>
+        </div>
+        <div class="pending-list" id="pending-list"></div>
+      </section>
+    </section>
+
+    <section class="view" id="view-backup">
+      <section class="panel">
+        <p class="eyebrow">数据</p>
+        <h2>JSON 备份与恢复</h2>
+        <p class="warning">
+          浏览器存储不具备事务保证。恢复失败可能留下部分数据；导入前请先导出备份。
+        </p>
+        <div class="actions">
+          <button class="primary-button" id="export-json" type="button">导出题库 JSON</button>
+          <label class="secondary-button file-button">
+            选择 JSON 文件
+            <input id="import-file" type="file" accept=".json,application/json" hidden />
+          </label>
+        </div>
+        <p class="backup-preview" id="backup-preview" hidden></p>
+        <button class="primary-button" id="import-confirm" type="button" hidden>确认导入备份</button>
+        <p class="hint" id="backup-status"></p>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="question-bank.js"></script>
+  <script src="question-bank-storage.js"></script>
+  <script src="practice.js"></script>
+  <script src="library.js"></script>
+</body>
+</html>
