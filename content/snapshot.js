@@ -316,7 +316,9 @@ globalThis.collectPageSnapshot = function collectPageSnapshot() {
       selected.querySelector(".posCatalog_name") ||
       selected.querySelector(".posCatalog_title");
     const chapterName = clean(
-      nameElement ? nameElement.innerText : selected.innerText,
+      nameElement
+        ? nameElement.getAttribute("title") || nameElement.innerText
+        : selected.innerText,
       120
     );
     if (chapterName.length < 2) {

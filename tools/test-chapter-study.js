@@ -269,6 +269,48 @@ test("选中的是上级章节时允许 chapterName 为上级章节，parent 为
   assert.strictEqual(data.catalog.parentChapterName, null);
 });
 
+test("目录章节名包含“测验”时仍可识别，不按页面名过滤", () => {
+  const html = `
+    <div id="coursetree">
+      <ul>
+        <li>
+          <div class="posCatalog_select firstLayer">
+            <span class="posCatalog_title">第五章 传出神经系统药理概论</span>
+          </div>
+          <div class="posCatalog_level">
+            <ul>
+              <li>
+                <div class="posCatalog_select posCatalog_active" id="cur1231902278">
+                  <span class="posCatalog_name" title="绪论+传出神经系统药物测验">
+                    <em class="posCatalog_sbar">51.3</em> 绪论+传出神经系统药物测验
+                  </span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </div>
+  `;
+  const data = snapshot(html, 0);
+  assert.strictEqual(
+    data.catalog.chapterName,
+    "绪论+传出神经系统药物测验"
+  );
+  const result = Classifier.classify({
+    url: COURSE_URL,
+    title: "学生学习页面",
+    frames: [data]
+  });
+  assert.strictEqual(
+    result.chapterName,
+    "绪论+传出神经系统药物测验"
+  );
+  assert.strictEqual(result.chapterId, "cur1231902278");
+  assert.strictEqual(result.chapterIdStatus, "stable");
+  assert.strictEqual(result.chapterFrameStatus, "stable");
+});
+
 (async () => {
   let failed = 0;
   for (const item of tests) {

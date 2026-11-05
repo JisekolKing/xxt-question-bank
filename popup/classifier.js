@@ -528,10 +528,15 @@
     ) {
       return null;
     }
-    // 只有明确来自 .ceyan_name h3 的“题库+数字”候选允许绕过页面名规则；
-    // 普通 heading、面包屑、页面标题以及其它页面名仍走严格规则。
+    // 目录中真实选中的章节可能本身就叫“绪论+传出神经系统药物测验”。
+    // 只有来自可信课程目录、且不是单独“测验/作业/考试”这类通用页面名时，
+    // 才允许绕过页面名过滤；普通页面标题仍走严格规则。
+    const trustedCatalogTitle =
+      trusted &&
+      name.length >= 6 &&
+      !/^(?:作业|测验|测试|考试|练习|答案|解析|题库)$/.test(name);
     const trustedTiku = trusted && /^题库\s*\d/.test(name);
-    if (!trustedTiku && PAGE_NAME_PATTERN.test(name)) {
+    if (!trustedTiku && !trustedCatalogTitle && PAGE_NAME_PATTERN.test(name)) {
       return null;
     }
     if (courseName && name === courseName) {
