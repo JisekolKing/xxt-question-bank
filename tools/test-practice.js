@@ -126,6 +126,35 @@ test("总结正确率和用时", () => {
   assert.strictEqual(summary.elapsedMs, 5000);
 });
 
+test("DeepSeek 提示词包含题目与选项且不泄露已有答案", () => {
+  const prompt = Practice.buildDeepSeekPrompt(
+    question({
+      stem: "某药的作用是（ ）",
+      options: [
+        { label: "A", text: "选项甲", textStatus: "ok" },
+        { label: "B", text: "选项乙", textStatus: "ok" }
+      ],
+      correctAnswer: {
+        value: "A",
+        text: "答案泄露标记",
+        status: "visible"
+      }
+    }),
+    { courseName: "药理学", chapterName: "第一章" }
+  );
+  assert.match(prompt, /某药的作用是/);
+  assert.match(prompt, /A\. 选项甲/);
+  assert.match(prompt, /B\. 选项乙/);
+  assert.doesNotMatch(prompt, /题型：/);
+  assert.doesNotMatch(prompt, /课程：/);
+  assert.doesNotMatch(prompt, /章节\/分类：/);
+  assert.doesNotMatch(prompt, /答案泄露标记/);
+  assert.strictEqual(
+    Practice.buildDeepSeekPrompt(question({ stem: null }), {}),
+    ""
+  );
+});
+
 console.log("模拟练习数据层测试\n");
 
 (async () => {

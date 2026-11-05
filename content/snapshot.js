@@ -364,6 +364,49 @@ globalThis.collectPageSnapshot = function collectPageSnapshot() {
 
   const catalog = extractCatalog();
 
+  // ---------- 4c. 作业页标题（作为作业分类名） ----------
+
+  function extractWorkTitle() {
+    const selectors = [
+      ".page-title",
+      ".mark_title",
+      ".work-title",
+      ".exam-title",
+      "[class*='workTitle']",
+      "[class*='work_title']",
+      "h1"
+    ];
+    for (const selector of selectors) {
+      const nodes = Array.from(document.querySelectorAll(selector));
+      for (const node of nodes) {
+        if (!isVisible(node)) continue;
+        const title = clean(
+          String(node.innerText == null ? "" : node.innerText).replace(
+            /^(?:作业标题|作业名称)\s*[:：]\s*/,
+            ""
+          ),
+          120
+        );
+        if (title.length >= 2) {
+          if (
+            /^(?:作业详情|作业|作业标题|作业名称|考试详情|考试|测验详情)$/.test(
+              title
+            )
+          ) {
+            continue;
+          }
+          return {
+            text: title,
+            selector
+          };
+        }
+      }
+    }
+    return null;
+  }
+
+  const workTitle = extractWorkTitle();
+
   return {
     url: location.href,
     title: clean(document.title, 160),
@@ -372,6 +415,8 @@ globalThis.collectPageSnapshot = function collectPageSnapshot() {
     courseCandidates,
     courseLinks,
     chapterCandidates,
+    workTitle: workTitle ? workTitle.text : null,
+    workTitleHint: workTitle ? workTitle.selector : null,
     catalog
   };
 };

@@ -108,6 +108,10 @@
   function analyzeUrl(rawUrl) {
     try {
       const parsed = new URL(String(rawUrl || ""));
+      const workId =
+        parsed.searchParams.get("workId") ||
+        parsed.searchParams.get("workid") ||
+        null;
       return {
         ok: true,
         href: parsed.href,
@@ -115,6 +119,7 @@
         host: parsed.hostname.toLowerCase(),
         path: parsed.pathname.toLowerCase(),
         search: parsed.search.toLowerCase(),
+        workId,
         isChaoxing: isChaoxingHost(parsed.hostname)
       };
     } catch (error) {
@@ -564,7 +569,7 @@
    * 可靠来源：可见章节标题元素（3 分）、章节式面包屑/标题（2 分）。
    * 页面标题中的章节片段（1 分）只作为兜底，并且必须符合“第 X 章/单元/专题”等形式。
    */
-  function detectChapterName(frames, courseName) {
+  function detectChapterName(frames, courseName, workId) {
     const candidates = [];
 
     function addCandidate(name, score, source, parentName, metadata) {
@@ -655,6 +660,32 @@
       });
     });
 
+    const hasCatalogChapter = frames.some(
+      (frame) =>
+        frame &&
+        frame.catalog &&
+        frame.catalog.chapterName &&
+        frame.catalog.chapterId
+    );
+    if (!hasCatalogChapter && workId) {
+      const workChapterId =
+        "work_" + String(workId).replace(/[^\w-]/g, "");
+      frames.forEach((frame) => {
+        if (!frame || !frame.workTitle) return;
+        const workChapter = sanitizeChapterName(
+          frame.workTitle,
+          courseName,
+          { trusted: true }
+        );
+        addCandidate(workChapter, 3, "作业标题", null, {
+          chapterId: workChapterId,
+          chapterIdSource: "work",
+          chapterIdStatus: "stable",
+          frameId: frame.frameId
+        });
+      });
+    }
+
     const titles = [];
     frames.forEach((frame) => {
       const title = normalize(frame && frame.title);
@@ -700,7 +731,9 @@
 
     const catalogCandidates = candidates.filter(
       (candidate) =>
-        candidate.source === "课程目录" && candidate.chapterId
+        candidate.chapterId &&
+        (candidate.source === "课程目录" ||
+          candidate.source === "作业标题")
     );
     const catalogIds = new Set(
       catalogCandidates.map((candidate) => candidate.chapterId)
@@ -818,7 +851,12 @@
 
     const detection = detectPageType(urlInfo, frames, data.title);
     const course = detectCourseName(data.title, frames, detection.pageType);
-    const chapter = detectChapterName(frames, course.name);
+    const chapter = detectChapterName(
+      frames,
+      course.name,
+      urlInfo.workId
+    );
+
 
     return {
       isChaoxing: true,

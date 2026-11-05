@@ -184,6 +184,23 @@ test("宽松模式可保存跨 frame 题目但标记未验证", () => {
   assert.strictEqual(result.question.chapterLinkStatus, "cross_frame");
 });
 
+test("workId 作业分类可以作为稳定章节", () => {
+  const result = Bank.toBankQuestion(
+    question({
+      chapter: "Lecture1&2",
+      chapterId: "work_56876045",
+      chapterIdSource: "work",
+      chapterIdStatus: "stable",
+      chapterLinkStatus: "direct"
+    }),
+    context()
+  );
+  assert.strictEqual(result.plan.target, "official");
+  assert.strictEqual(result.question.chapterId, "work_56876045");
+  assert.strictEqual(result.question.chapterIdSource, "work");
+  assert.ok(result.question.chapterKey);
+});
+
 test("stable + descendant 可进入正式归类", () => {
   const result = Bank.toBankQuestion(
     question({ chapterLinkStatus: "descendant" }),

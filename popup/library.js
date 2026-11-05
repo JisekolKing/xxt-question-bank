@@ -19,12 +19,15 @@
     practice: {
       courses: [],
       chapters: [],
+      scope: "chapter",
+      selectedChapterKeys: [],
       session: null,
       index: 0,
       answers: [],
       selection: [],
       submitted: false,
-      startedAt: 0
+      startedAt: 0,
+      resume: null
     }
   };
 
@@ -130,77 +133,17 @@
     );
   }
 
-  function renderCourseList() {
-    const list = byId("course-list");
-    list.textContent = "";
-    if (!state.courses.length) {
-      list.append(el("p", "hint", "还没有本地课程。请先在弹窗中保存题目。"));
-      return;
-    }
-    state.courses.forEach((course) => {
-      const button = el("button", "list-button");
-      button.type = "button";
-      button.classList.toggle(
-        "is-active",
-        course.courseKey === state.selectedCourseKey
-      );
-      button.append(document.createTextNode(text(course.courseName, "未命名课程")));
-      button.append(document.createElement("br"));
-      button.append(
-        el(
-          "small",
-          "",
-          `${course.chapterCount || 0} 个章节${
-            course.courseId ? ` · ${course.courseId}` : ""
-          }`
-        )
-      );
-      button.addEventListener("click", async () => {
-        state.selectedCourseKey = course.courseKey;
-        state.selectedChapterKey = "";
-        renderCourseList();
-        await loadChapters(course.courseKey);
-      });
-      list.append(button);
-    });
-  }
-
-  async function loadChapters(courseKey) {
-    const store = getStore();
-    state.chapters = [];
-    state.questions = [];
-    const chapterList = byId("chapter-list");
-    chapterList.textContent = "";
-    if (!courseKey) {
-      renderQuestions();
-      return;
-    }
-    const result = await store.getChapters(courseKey);
-    if (!result.ok) {
-      chapterList.append(el("p", "hint", result.error.message));
-      return;
-    }
-    state.chapters = result.chapters || [];
-    if (!state.chapters.length) {
-      chapterList.append(el("p", "hint", "该课程没有章节。"));
-      renderQuestions();
-      return;
-    }
-    if (
-      !state.chapters.some(
-        (chapter) => chapter.chapterKey === state.selectedChapterKey
-      )
-    ) {
-      state.selectedChapterKey = state.chapters[0].chapterKey;
-    }
+  function renderChapterButtons(container) {
     state.chapters.forEach((chapter) => {
-      const button = el("button", "list-button");
+      const button = el("button", "list-button chapter-button");
       button.type = "button";
       button.classList.toggle(
         "is-active",
         chapter.chapterKey === state.selectedChapterKey
       );
-      button.append(document.createTextNode(text(chapter.chapterName, "未命名章节")));
+      button.append(
+        document.createTextNode(text(chapter.chapterName, "未命名章节"))
+      );
       button.append(document.createElement("br"));
       button.append(
         el(
@@ -215,24 +158,98 @@
       );
       button.addEventListener("click", () => {
         state.selectedChapterKey = chapter.chapterKey;
-        renderChapterList();
+        renderCourseList();
         loadQuestions(chapter.chapterKey);
       });
-      chapterList.append(button);
+      container.append(button);
     });
-    await loadQuestions(state.selectedChapterKey);
   }
 
-  function renderChapterList() {
-    const buttons = byId("chapter-list").querySelectorAll(".list-button");
-    state.chapters.forEach((chapter, index) => {
-      if (buttons[index]) {
-        buttons[index].classList.toggle(
-          "is-active",
-          chapter.chapterKey === state.selectedChapterKey
-        );
+  function renderCourseList() {
+    const list = byId("course-list");
+    list.textContent = "";
+    if (!state.courses.length) {
+      list.append(el("p", "hint", "还没有本地课程。请先在弹窗中保存题目。"));
+      return;
+    }
+    state.courses.forEach((course) => {
+      const group = el("div", "course-group");
+      const button = el("button", "list-button course-button");
+      button.type = "button";
+      button.classList.toggle(
+        "is-active",
+        course.courseKey === state.selectedCourseKey
+      );
+      button.append(
+        el("span", "course-button__name", text(course.courseName, "未命名课程"))
+      );
+      button.append(
+        el(
+          "small",
+          "",
+          `${course.chapterCount || 0} 个章节${
+            course.courseId ? ` · ${course.courseId}` : ""
+          }`
+        )
+      );
+      button.addEventListener("click", async () => {
+        state.selectedCourseKey = course.courseKey;
+        state.selectedChapterKey = "";
+        state.chapters = [];
+        state.chapterError = "";
+        renderCourseList();
+        await loadChapters(course.courseKey);
+      });
+      group.append(button);
+
+      if (course.courseKey === state.selectedCourseKey) {
+        const chapterList = el("div", "chapter-list");
+        if (state.chapterError) {
+          chapterList.append(el("p", "hint", state.chapterError));
+        } else if (!state.chapters.length) {
+          chapterList.append(el("p", "hint", "正在读取章节…"));
+        } else {
+          renderChapterButtons(chapterList);
+        }
+        group.append(chapterList);
       }
+      list.append(group);
     });
+  }
+
+  async function loadChapters(courseKey) {
+    const store = getStore();
+    state.chapters = [];
+    state.questions = [];
+    state.chapterError = "";
+    if (!courseKey) {
+      renderCourseList();
+      renderQuestions();
+      return;
+    }
+    const result = await store.getChapters(courseKey);
+    if (!result.ok) {
+      state.chapterError = result.error.message;
+      renderCourseList();
+      renderQuestions();
+      return;
+    }
+    state.chapters = result.chapters || [];
+    if (!state.chapters.length) {
+      state.chapterError = "该课程没有章节。";
+      renderCourseList();
+      renderQuestions();
+      return;
+    }
+    if (
+      !state.chapters.some(
+        (chapter) => chapter.chapterKey === state.selectedChapterKey
+      )
+    ) {
+      state.selectedChapterKey = state.chapters[0].chapterKey;
+    }
+    renderCourseList();
+    await loadQuestions(state.selectedChapterKey);
   }
 
   async function loadQuestions(chapterKey) {
@@ -410,6 +427,112 @@
 
   /* ---------- 练习 ---------- */
 
+  function practiceScope() {
+    const select = byId("practice-scope");
+    const selected = Array.from(select.options || []).find(
+      (option) => option.selected
+    );
+    const value = select.value || (selected && selected.value);
+    return value === "course" || value === "selected" ? value : "chapter";
+  }
+
+  function practiceStatusText() {
+    if (practiceScope() === "selected") {
+      return state.practice.chapters.length
+        ? `自选章节：已选 ${state.practice.selectedChapterKeys.length} / ${state.practice.chapters.length} 个。`
+        : "当前课程没有可练习章节。";
+    }
+    if (practiceScope() === "course") {
+      return state.practice.chapters.length
+        ? `本课程合并题库：${state.practice.chapters.length} 个章节。`
+        : "当前课程没有可合并练习的章节。";
+    }
+    return state.practice.chapters.length
+      ? `${state.practice.chapters.length} 个章节可练习。`
+      : "当前课程没有可练习章节。";
+  }
+
+  function updatePracticeScopeUi() {
+    const scope = practiceScope();
+    byId("practice-chapter-field").hidden = scope !== "chapter";
+    byId("practice-chapter-picker").hidden = scope !== "selected";
+    byId("practice-chapter").disabled = scope !== "chapter";
+  }
+
+  function renderPracticeChapterPicker() {
+    const picker = byId("practice-chapter-picker");
+    picker.textContent = "";
+    const head = el("div", "chapter-picker__head");
+    const title = el("span", "", "选择章节（可多选）");
+    const selectAll = el("button", "text-button", "全选");
+    selectAll.type = "button";
+    const clear = el("button", "text-button", "清空");
+    clear.type = "button";
+    head.append(title, selectAll, clear);
+    picker.append(head);
+
+    const sync = () => {
+      state.practice.selectedChapterKeys = Array.from(
+        picker.querySelectorAll("input[type=checkbox]")
+      )
+        .filter((input) => input.checked)
+        .map((input) => input.value);
+      byId("practice-status").textContent = practiceStatusText();
+      updatePracticeStartState();
+    };
+    selectAll.addEventListener("click", () => {
+      picker.querySelectorAll("input[type=checkbox]").forEach((input) => {
+        input.checked = true;
+      });
+      sync();
+    });
+    clear.addEventListener("click", () => {
+      picker.querySelectorAll("input[type=checkbox]").forEach((input) => {
+        input.checked = false;
+      });
+      sync();
+    });
+
+    state.practice.chapters.forEach((chapter) => {
+      const item = el("label", "chapter-picker__item");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = chapter.chapterKey;
+      input.checked = state.practice.selectedChapterKeys.includes(
+        chapter.chapterKey
+      );
+      input.addEventListener("change", sync);
+      item.append(
+        input,
+        el(
+          "span",
+          "",
+          `${chapter.chapterName || "未命名章节"}（${
+            chapter.questionCount || 0
+          } 题）`
+        )
+      );
+      picker.append(item);
+    });
+    updatePracticeScopeUi();
+  }
+
+  function updatePracticeStartState() {
+    const scope = practiceScope();
+    if (scope === "selected") {
+      byId("practice-start").disabled =
+        state.practice.selectedChapterKeys.length === 0;
+      return;
+    }
+    if (scope === "course") {
+      byId("practice-start").disabled =
+        !byId("practice-course").value ||
+        state.practice.chapters.length === 0;
+      return;
+    }
+    byId("practice-start").disabled = !byId("practice-chapter").value;
+  }
+
   async function loadPracticeCourses() {
     const store = getStore();
     const result = await store.getCourses();
@@ -418,6 +541,7 @@
       return;
     }
     state.practice.courses = result.courses || [];
+    setSelectValue(byId("practice-scope"), state.practice.scope);
     fillSelect(
       byId("practice-course"),
       state.practice.courses,
@@ -432,17 +556,26 @@
       );
 
       await loadPracticeChapters(state.practice.courses[0].courseKey);
+    } else {
+      renderPracticeChapterPicker();
+      updatePracticeStartState();
     }
   }
 
   async function loadPracticeChapters(courseKey) {
     const store = getStore();
     state.practice.chapters = [];
+    state.practice.selectedChapterKeys = [];
     byId("practice-start").disabled = true;
-    if (!courseKey) return;
+    renderPracticeChapterPicker();
+    if (!courseKey) {
+      updatePracticeStartState();
+      return;
+    }
     const result = await store.getChapters(courseKey);
     if (!result.ok) {
       byId("practice-status").textContent = result.error.message;
+      updatePracticeStartState();
       return;
     }
     state.practice.chapters = result.chapters || [];
@@ -458,12 +591,10 @@
         byId("practice-chapter"),
         state.practice.chapters[0].chapterKey
       );
-
-      byId("practice-start").disabled = false;
     }
-    byId("practice-status").textContent = state.practice.chapters.length
-      ? `${state.practice.chapters.length} 个章节可练习。`
-      : "当前课程没有可练习章节。";
+    renderPracticeChapterPicker();
+    byId("practice-status").textContent = practiceStatusText();
+    updatePracticeStartState();
   }
 
   function setSelectValue(select, value) {
@@ -495,23 +626,78 @@
 
   async function startPractice() {
     const store = getStore();
+    const scope = practiceScope();
+    const courseKey = byId("practice-course").value;
     const chapterKey = byId("practice-chapter").value;
-    if (!store || !chapterKey || !Practice) return;
-    const result = await store.getQuestions(chapterKey);
-    if (!result.ok || !result.questions.length) {
+    if (
+      !store ||
+      !Practice ||
+      (scope === "course" ? !courseKey : null) ||
+      (scope === "selected" &&
+        state.practice.selectedChapterKeys.length === 0) ||
+      (scope === "chapter" && !chapterKey)
+    ) {
       byId("practice-status").textContent =
-        result.ok ? "当前章节没有题目。" : result.error.message;
+        scope === "course"
+          ? "请选择课程后再开始练习。"
+          : scope === "selected"
+          ? "请至少选择一个章节后再开始练习。"
+          : "请选择章节后再开始练习。";
       return;
     }
-    const session = Practice.createSession(result.questions, {
+
+    let questions = [];
+    let chapterCount = 0;
+    if (scope === "course") {
+      const result = await store.getCourseQuestions(courseKey);
+      if (!result.ok) {
+        byId("practice-status").textContent = result.error.message;
+        return;
+      }
+      questions = result.questions || [];
+      chapterCount =
+        result.chapterCount || state.practice.chapters.length;
+    } else if (scope === "selected") {
+      const result = await store.getQuestionsByChapters(
+        state.practice.selectedChapterKeys
+      );
+      if (!result.ok) {
+        byId("practice-status").textContent = result.error.message;
+        return;
+      }
+      questions = result.questions || [];
+      chapterCount = result.chapterCount;
+    } else {
+      const result = await store.getQuestions(chapterKey);
+      if (!result.ok) {
+        byId("practice-status").textContent = result.error.message;
+        return;
+      }
+      questions = result.questions || [];
+      chapterCount = 1;
+    }
+    if (!questions.length) {
+      byId("practice-status").textContent =
+        scope === "course"
+          ? "当前课程没有题目。"
+          : scope === "selected"
+          ? "所选章节没有题目。"
+          : "当前章节没有题目。";
+      return;
+    }
+    const session = Practice.createSession(questions, {
       mode: byId("practice-mode").value
     });
+    state.practice.scope = scope;
     state.practice.session = session;
     state.practice.index = 0;
     state.practice.answers = [];
     state.practice.selection = [];
     state.practice.submitted = false;
     state.practice.startedAt = Date.now();
+    state.practice.chapterCount = chapterCount;
+    clearPracticeAiStatus();
+    savePracticeResume();
     byId("practice-setup").hidden = true;
     byId("practice-summary").hidden = true;
     byId("practice-session").hidden = false;
@@ -532,6 +718,222 @@
       .sort();
   }
 
+  function setPracticeAiStatus(text, warning) {
+    const status = byId("practice-ai-status");
+    status.hidden = !text;
+    status.textContent = text || "";
+    status.className = warning
+      ? "practice-ai-status practice-ai-status--warning"
+      : "practice-ai-status";
+  }
+
+  function clearPracticeAiStatus() {
+    setPracticeAiStatus("");
+    const old = byId("practice-ai-prompt");
+    if (old) old.remove();
+  }
+
+  async function copyTextForAi(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (error) {
+      // Fall through to the legacy copy path.
+    }
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.append(textarea);
+      textarea.select();
+      const copied = document.execCommand && document.execCommand("copy");
+      textarea.remove();
+      return Boolean(copied);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function showPracticePromptFallback(prompt) {
+    const old = byId("practice-ai-prompt");
+    if (old) old.remove();
+    const textarea = document.createElement("textarea");
+    textarea.id = "practice-ai-prompt";
+    textarea.className = "practice-ai-prompt";
+    textarea.readOnly = true;
+    textarea.value = prompt;
+    byId("practice-ai-status").insertAdjacentElement("afterend", textarea);
+    textarea.focus();
+    textarea.select();
+  }
+
+  async function askPracticeDeepSeek() {
+    const question = currentPracticeQuestion();
+    if (
+      !question ||
+      !Practice ||
+      typeof Practice.buildDeepSeekPrompt !== "function"
+    ) {
+      setPracticeAiStatus("当前没有可发送的题目。", true);
+      return;
+    }
+    const prompt = Practice.buildDeepSeekPrompt(question, {
+      courseName: question.courseName,
+      chapterName: question.chapterName
+    });
+    if (!prompt) {
+      setPracticeAiStatus(
+        "当前题目题干不可读，未发送。请先确认题目文字已正常显示。",
+        true
+      );
+      return;
+    }
+    const copied = await copyTextForAi(prompt);
+    if (chrome.tabs && chrome.tabs.create) {
+      chrome.tabs.create({ url: "https://chat.deepseek.com/" });
+    } else {
+      window.open(
+        "https://chat.deepseek.com/",
+        "_blank",
+        "noopener,noreferrer"
+      );
+    }
+    if (copied) {
+      setPracticeAiStatus(
+        "提示词已复制，已打开 DeepSeek。登录后按 Ctrl+V 粘贴并发送。",
+        false
+      );
+    } else {
+      setPracticeAiStatus(
+        "未能自动复制提示词。请手动复制下方内容，再到 DeepSeek 发送。",
+        true
+      );
+      showPracticePromptFallback(prompt);
+    }
+  }
+
+  function getPracticeResumeStore() {
+    if (!globalThis.PracticeResume) return null;
+    if (!state.practice.resumeStore) {
+      state.practice.resumeStore =
+        globalThis.PracticeResume.createResumeStore({
+          storage: chrome.storage.local,
+          now: Date.now
+        });
+    }
+    return state.practice.resumeStore;
+  }
+
+  function buildPracticeResumeSnapshot() {
+    const session = state.practice.session;
+    if (!session || !Array.isArray(session.questions)) return null;
+    const current = session.questions[state.practice.index];
+    return {
+      schemaVersion: 1,
+      courseKey:
+        byId("practice-course").value ||
+        (current && current.courseKey) ||
+        null,
+      courseName: (current && current.courseName) || null,
+      scope: state.practice.scope || "chapter",
+      chapterKey:
+        (current && current.chapterKey) ||
+        byId("practice-chapter").value ||
+        null,
+      chapterName: (current && current.chapterName) || null,
+      selectedChapterKeys: state.practice.selectedChapterKeys || [],
+      mode: session.mode || "sequential",
+      chapterCount: state.practice.chapterCount || 0,
+      questions: session.questions,
+      index: state.practice.index,
+      answers: state.practice.answers,
+      selection: state.practice.selection,
+      submitted: state.practice.submitted,
+      startedAt: state.practice.startedAt
+    };
+  }
+
+  async function savePracticeResume() {
+    const store = getPracticeResumeStore();
+    const snapshot = buildPracticeResumeSnapshot();
+    if (!store || !snapshot) return;
+    const result = await store.save(snapshot);
+    if (result && result.ok) {
+      state.practice.resume = result.snapshot;
+      renderPracticeResumeBanner();
+    }
+  }
+
+  function renderPracticeResumeBanner() {
+    const banner = byId("practice-resume");
+    const snapshot = state.practice.resume;
+    if (!snapshot || state.practice.session) {
+      banner.hidden = true;
+      return;
+    }
+    const scopeLabel =
+      snapshot.scope === "course"
+        ? "课程合并题库"
+        : snapshot.scope === "selected"
+        ? "自选章节"
+        : "按章节";
+    byId("practice-resume-text").textContent =
+      `${snapshot.courseName || "上次练习"} · ${scopeLabel} · ` +
+      `已答 ${snapshot.answers.length} / ${snapshot.total} 题 · ` +
+      `第 ${snapshot.index + 1} 题`;
+    banner.hidden = false;
+  }
+
+  async function loadPracticeResume() {
+    const store = getPracticeResumeStore();
+    if (!store) {
+      renderPracticeResumeBanner();
+      return;
+    }
+    const result = await store.load();
+    state.practice.resume =
+      result && result.ok ? result.snapshot : null;
+    renderPracticeResumeBanner();
+  }
+
+  function restorePracticeResume(snapshot) {
+    if (!snapshot || !Array.isArray(snapshot.questions)) return;
+    state.practice.session = {
+      mode: snapshot.mode,
+      questions: snapshot.questions.slice(),
+      total: snapshot.total
+    };
+    state.practice.index = snapshot.index;
+    state.practice.answers = Array.isArray(snapshot.answers)
+      ? snapshot.answers.slice()
+      : [];
+    state.practice.selection = Array.isArray(snapshot.selection)
+      ? snapshot.selection.slice()
+      : [];
+    state.practice.submitted = Boolean(snapshot.submitted);
+    state.practice.startedAt = snapshot.startedAt;
+    state.practice.scope = snapshot.scope;
+    state.practice.selectedChapterKeys = snapshot.selectedChapterKeys || [];
+    state.practice.chapterCount = snapshot.chapterCount || 0;
+    state.practice.resume = snapshot;
+    setSelectValue(byId("practice-scope"), snapshot.scope);
+    byId("practice-setup").hidden = true;
+    byId("practice-summary").hidden = true;
+    byId("practice-session").hidden = false;
+    renderPractice();
+    renderPracticeResumeBanner();
+  }
+
+  async function discardPracticeResume() {
+    const store = getPracticeResumeStore();
+    if (store) await store.clear();
+    state.practice.resume = null;
+    renderPracticeResumeBanner();
+  }
+
   function renderPractice() {
     const question = currentPracticeQuestion();
     const session = state.practice.session;
@@ -539,7 +941,12 @@
     const index = state.practice.index;
     const answer = state.practice.answers[index];
     byId("practice-progress").textContent = `第 ${index + 1} / ${session.total} 题`;
-    byId("practice-remaining").textContent = `剩余 ${session.total - index - 1} 题`;
+    byId("practice-remaining").textContent =
+      (state.practice.scope === "course"
+        ? "合并题库 · "
+        : state.practice.scope === "selected"
+        ? "自选章节 · "
+        : "") + `剩余 ${session.total - index - 1} 题`;
     const container = byId("practice-question");
     container.textContent = "";
     const title = el(
@@ -577,6 +984,7 @@
       }
       input.addEventListener("change", () => {
         state.practice.selection = selectedPracticeValues();
+        savePracticeResume();
         Array.from(options.children).forEach((item) => {
           item.classList.toggle(
             "is-selected",
@@ -656,6 +1064,7 @@
       number: question.number
     };
     state.practice.submitted = true;
+    savePracticeResume();
     renderPractice();
   }
 
@@ -669,6 +1078,8 @@
     state.practice.index += 1;
     state.practice.selection = [];
     state.practice.submitted = false;
+    clearPracticeAiStatus();
+    savePracticeResume();
     renderPractice();
   }
 
@@ -701,14 +1112,17 @@
       item.append(strong, el("span", "", label));
       grid.append(item);
     });
+    discardPracticeResume();
     state.practice.session = null;
   }
 
   function exitPractice() {
+    savePracticeResume();
     state.practice.session = null;
     byId("practice-session").hidden = true;
     byId("practice-summary").hidden = true;
     byId("practice-setup").hidden = false;
+    clearPracticeAiStatus();
   }
 
   /* ---------- pending ---------- */
@@ -965,12 +1379,36 @@
     byId("practice-course").addEventListener("change", () =>
       loadPracticeChapters(byId("practice-course").value)
     );
+    byId("practice-scope").addEventListener("change", () => {
+      state.practice.scope = practiceScope();
+      updatePracticeScopeUi();
+      if (state.practice.scope === "selected") {
+        renderPracticeChapterPicker();
+      }
+      byId("practice-status").textContent = practiceStatusText();
+      updatePracticeStartState();
+    });
     byId("practice-chapter").addEventListener("change", () => {
-      byId("practice-start").disabled = !byId("practice-chapter").value;
+      updatePracticeStartState();
     });
     byId("practice-start").addEventListener("click", startPractice);
     byId("practice-submit").addEventListener("click", submitPractice);
     byId("practice-next").addEventListener("click", nextPractice);
+    byId("practice-ask-ai").addEventListener("click", () => {
+      askPracticeDeepSeek().catch((error) =>
+        setPracticeAiStatus(error.message, true)
+      );
+    });
+    byId("practice-resume-continue").addEventListener("click", () => {
+      if (state.practice.resume) {
+        restorePracticeResume(state.practice.resume);
+      }
+    });
+    byId("practice-resume-discard").addEventListener("click", () => {
+      discardPracticeResume().catch((error) =>
+        setPracticeAiStatus(error.message, true)
+      );
+    });
     byId("practice-quit").addEventListener("click", exitPractice);
     byId("practice-restart").addEventListener("click", () => {
       byId("practice-summary").hidden = true;
@@ -996,6 +1434,7 @@
     bind();
     await refreshLibrary();
     await loadPending();
+    await loadPracticeResume();
   }
 
   document.addEventListener("DOMContentLoaded", () => {

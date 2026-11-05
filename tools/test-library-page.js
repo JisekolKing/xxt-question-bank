@@ -18,6 +18,7 @@ const Storage = require(path.join(
   "question-bank-storage.js"
 ));
 const Practice = require(path.join(__dirname, "..", "popup", "practice.js"));
+const Resume = require(path.join(__dirname, "..", "popup", "practice-resume.js"));
 
 const ROOT = path.join(__dirname, "..");
 const HTML = fs.readFileSync(
@@ -130,7 +131,8 @@ function createPage() {
     },
     QuestionBank: Bank,
     QuestionBankStorage: Storage,
-    QuestionPractice: Practice
+    QuestionPractice: Practice,
+    PracticeResume: Resume
   };
   vm.createContext(sandbox);
   vm.runInContext(JS, sandbox, { filename: "library.js" });
@@ -209,7 +211,8 @@ function createPageWithStorage(local) {
     chrome: { storage: { local, session: createLocalStorage() } },
     QuestionBank: Bank,
     QuestionBankStorage: Storage,
-    QuestionPractice: Practice
+    QuestionPractice: Practice,
+    PracticeResume: Resume
   };
   vm.createContext(sandbox);
   vm.runInContext(JS, sandbox, { filename: "library.js" });
@@ -245,6 +248,180 @@ test("搜索可以过滤完整网页题目", async () => {
   assert.match(
     fresh.getElementById("full-question-list").textContent,
     /没有符合筛选条件/
+  );
+});
+
+test("侧栏按课程树展开当前课程章节", async () => {
+  const { local } = createPage();
+  const store = Storage.createStorage({
+    storage: {
+      async get(keys) {
+        if (keys === null) return clone(local.data);
+        return { [keys]: clone(local.data[keys]) };
+      },
+      async set(entries) {
+        Object.keys(entries).forEach((key) => {
+          local.data[key] = clone(entries[key]);
+        });
+      },
+      async remove() {}
+    },
+    now: Date.now,
+    locks: null
+  });
+  await store.saveOfficialQuestion(question(), context());
+  const { document: fresh } = createPageWithStorage(local);
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const group = fresh.querySelector("#course-list .course-group");
+  assert.ok(group);
+  assert.ok(group.querySelector(".course-button"));
+  assert.ok(group.querySelector(".chapter-list .chapter-button"));
+  assert.strictEqual(
+    fresh.querySelectorAll("#course-list > .chapter-list").length,
+    0
+  );
+});
+
+test("完整网页支持课程合并题库跨章节练习", async () => {
+  const { local } = createPage();
+  const store = Storage.createStorage({
+    storage: {
+      async get(keys) {
+        if (keys === null) return clone(local.data);
+        return { [keys]: clone(local.data[keys]) };
+      },
+      async set(entries) {
+        Object.keys(entries).forEach((key) => {
+          local.data[key] = clone(entries[key]);
+        });
+      },
+      async remove() {}
+    },
+    now: Date.now,
+    locks: null
+  });
+  await store.saveOfficialQuestion(question(), context());
+  await store.saveOfficialQuestion(
+    question({
+      chapter: "2.9 题库02-002",
+      chapterId: "cur1231902407",
+      stem: "完整网页第二章节题干"
+    }),
+    context()
+  );
+  const { document: fresh, window: freshWindow } = createPageWithStorage(local);
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  fresh.querySelector('[data-view="practice"]').click();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  const scope = fresh.getElementById("practice-scope");
+  const courseOption = Array.from(scope.options).find(
+    (option) => option.value === "course"
+  );
+  courseOption.selected = true;
+  scope.dispatchEvent(new freshWindow.Event("change", { bubbles: true }));
+  fresh.getElementById("practice-start").click();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.match(
+    fresh.getElementById("practice-progress").textContent,
+    /1 \/ 2/
+  );
+});
+
+test("完整网页刷新后可以继续上次练习", async () => {
+  const { local } = createPage();
+  const resumeStore = Resume.createResumeStore({
+    storage: local,
+    now: Date.now
+  });
+  const saved = await resumeStore.save({
+    schemaVersion: 1,
+    courseKey: "course_resume",
+    courseName: "药理学",
+    scope: "chapter",
+    chapterKey: "chapter_resume",
+    chapterName: "第一章",
+    selectedChapterKeys: [],
+    mode: "sequential",
+    chapterCount: 1,
+    questions: [question()],
+    index: 0,
+    answers: [],
+    selection: ["B"],
+    submitted: false,
+    startedAt: 100
+  });
+  assert.strictEqual(saved.ok, true);
+  const { document: fresh } = createPageWithStorage(local);
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  fresh.querySelector('[data-view="practice"]').click();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.strictEqual(
+    fresh.getElementById("practice-resume").hidden,
+    false
+  );
+  fresh.getElementById("practice-resume-continue").click();
+  assert.strictEqual(
+    fresh.getElementById("practice-session").hidden,
+    false
+  );
+  assert.match(
+    fresh.getElementById("practice-progress").textContent,
+    /1 \/ 1/
+  );
+});
+
+test("完整网页支持自选多个章节", async () => {
+  const { local } = createPage();
+  const store = Storage.createStorage({
+    storage: {
+      async get(keys) {
+        if (keys === null) return clone(local.data);
+        return { [keys]: clone(local.data[keys]) };
+      },
+      async set(entries) {
+        Object.keys(entries).forEach((key) => {
+          local.data[key] = clone(entries[key]);
+        });
+      },
+      async remove() {}
+    },
+    now: Date.now,
+    locks: null
+  });
+  await store.saveOfficialQuestion(question(), context());
+  await store.saveOfficialQuestion(
+    question({
+      chapter: "2.9 题库02-002",
+      chapterId: "cur1231902407",
+      stem: "完整网页多选章节第二题"
+    }),
+    context()
+  );
+  const { document: fresh, window: freshWindow } = createPageWithStorage(local);
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  fresh.querySelector('[data-view="practice"]').click();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  const scope = fresh.getElementById("practice-scope");
+  const selectedOption = Array.from(scope.options).find(
+    (option) => option.value === "selected"
+  );
+  selectedOption.selected = true;
+  scope.dispatchEvent(new freshWindow.Event("change", { bubbles: true }));
+  const inputs = Array.from(
+    fresh.querySelectorAll(
+      "#practice-chapter-picker input[type=checkbox]"
+    )
+  );
+  assert.strictEqual(inputs.length, 2);
+  inputs.forEach((input) => {
+    input.checked = true;
+    input.dispatchEvent(new freshWindow.Event("change", { bubbles: true }));
+  });
+  fresh.getElementById("practice-start").click();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.match(
+    fresh.getElementById("practice-progress").textContent,
+    /1 \/ 2/
   );
 });
 

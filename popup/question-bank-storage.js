@@ -689,6 +689,69 @@
       }
     }
 
+    async function getCourseQuestions(courseKey) {
+      const storageErrorResult = ensureStorage();
+      if (storageErrorResult) return storageErrorResult;
+      const chaptersResult = await getChapters(courseKey);
+      if (!chaptersResult.ok) return chaptersResult;
+      try {
+        const all = await getAll();
+        const questions = [];
+        const chapters = chaptersResult.chapters || [];
+        chapters.forEach((chapter) => {
+          const key = chapterStorageKey(
+            courseKey,
+            chapter.chapterKey
+          );
+          const shard = all[key];
+          if (shard && shard.questions) {
+            Object.values(shard.questions).forEach((question) => {
+              questions.push(question);
+            });
+          }
+        });
+        return {
+          ok: true,
+          questions,
+          chapterCount: chapters.length,
+          indexRecovered: chaptersResult.indexRecovered
+        };
+      } catch (error) {
+        return error;
+      }
+    }
+
+    async function getQuestionsByChapters(chapterKeys) {
+      const storageErrorResult = ensureStorage();
+      if (storageErrorResult) return storageErrorResult;
+      const keys = Array.isArray(chapterKeys)
+        ? Array.from(new Set(chapterKeys.filter(Boolean)))
+        : [];
+      if (keys.length === 0) {
+        return { ok: true, questions: [], chapterCount: 0 };
+      }
+      try {
+        const all = await getAll();
+        const questions = [];
+        for (const chapterKey of keys) {
+          const key = await findChapterStorage(all, chapterKey);
+          const shard = key && all[key];
+          if (shard && shard.questions) {
+            Object.values(shard.questions).forEach((question) => {
+              questions.push(question);
+            });
+          }
+        }
+        return {
+          ok: true,
+          questions,
+          chapterCount: keys.length
+        };
+      } catch (error) {
+        return error;
+      }
+    }
+
     async function getPendingQuestions() {
       const storageErrorResult = ensureStorage();
       if (storageErrorResult) return storageErrorResult;
@@ -1315,6 +1378,8 @@
       getCourses,
       getChapters,
       getQuestions,
+      getCourseQuestions,
+      getQuestionsByChapters,
       getPendingQuestions,
       getQuestion,
       deleteQuestion,

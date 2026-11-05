@@ -34,12 +34,15 @@ const state = {
     chapters: [],
     selectedCourseKey: "",
     selectedChapterKey: "",
+    selectedChapterKeys: [],
+    scope: "chapter",
     session: null,
     index: 0,
     answers: [],
     selection: [],
     submitted: false,
-    startedAt: 0
+    startedAt: 0,
+    resume: null
   },
   backup: null
 };
@@ -225,9 +228,16 @@ function cacheElements() {
 
   ui.practiceSetup = document.getElementById("practice-setup");
   ui.practiceStatus = document.getElementById("practice-status");
+  ui.practiceResume = document.getElementById("practice-resume");
+  ui.practiceResumeText = document.getElementById("practice-resume-text");
+  ui.practiceResumeContinue = document.getElementById("practice-resume-continue");
+  ui.practiceResumeDiscard = document.getElementById("practice-resume-discard");
   ui.practiceRefresh = document.getElementById("practice-refresh");
   ui.practiceCourse = document.getElementById("practice-course");
   ui.practiceChapter = document.getElementById("practice-chapter");
+  ui.practiceChapterField = document.getElementById("practice-chapter-field");
+  ui.practiceChapterPicker = document.getElementById("practice-chapter-picker");
+  ui.practiceScope = document.getElementById("practice-scope");
   ui.practiceMode = document.getElementById("practice-mode");
   ui.practiceStart = document.getElementById("practice-start");
   ui.practiceSession = document.getElementById("practice-session");
@@ -237,6 +247,8 @@ function cacheElements() {
   ui.practiceFeedback = document.getElementById("practice-feedback");
   ui.practiceSubmit = document.getElementById("practice-submit");
   ui.practiceNext = document.getElementById("practice-next");
+  ui.practiceAskAi = document.getElementById("practice-ask-ai");
+  ui.practiceAiStatus = document.getElementById("practice-ai-status");
   ui.practiceQuit = document.getElementById("practice-quit");
   ui.practiceSummary = document.getElementById("practice-summary");
   ui.practiceSummaryText = document.getElementById("practice-summary-text");
@@ -3039,6 +3051,114 @@ function getPracticeApi() {
   return globalThis.QuestionPractice || null;
 }
 
+function getPracticeScope() {
+  const select = ui.practiceScope;
+  const selected = select
+    ? Array.from(select.options || []).find((option) => option.selected)
+    : null;
+  const value = (select && select.value) || (selected && selected.value);
+  return value === "course" || value === "selected" ? value : "chapter";
+}
+
+function practiceScopeStatus() {
+  const scope = getPracticeScope();
+  if (scope === "selected") {
+    return state.practice.chapters.length
+      ? `自选章节：已选 ${state.practice.selectedChapterKeys.length} / ${state.practice.chapters.length} 个。`
+      : "当前课程没有可练习章节。";
+  }
+  if (scope === "course") {
+    return state.practice.chapters.length
+      ? `本课程合并题库：${state.practice.chapters.length} 个章节。`
+      : "当前课程没有可合并练习的章节。";
+  }
+  return state.practice.chapters.length
+    ? `${state.practice.chapters.length} 个章节可练习。`
+    : "当前课程没有可练习章节。";
+}
+
+function updatePracticeScopeUi() {
+  const scope = getPracticeScope();
+  if (ui.practiceChapterField) {
+    ui.practiceChapterField.hidden = scope !== "chapter";
+  }
+  if (ui.practiceChapterPicker) {
+    ui.practiceChapterPicker.hidden = scope !== "selected";
+  }
+  if (ui.practiceChapter) {
+    ui.practiceChapter.disabled = scope !== "chapter";
+  }
+}
+
+function renderPracticeChapterPicker() {
+  if (!ui.practiceChapterPicker) return;
+  const picker = ui.practiceChapterPicker;
+  picker.textContent = "";
+  const head = document.createElement("div");
+  head.className = "chapter-picker__head";
+  const label = document.createElement("span");
+  label.textContent = "选择章节（可多选）";
+  const selectAll = document.createElement("button");
+  selectAll.type = "button";
+  selectAll.className = "link-button";
+  selectAll.textContent = "全选";
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "link-button";
+  clear.textContent = "清空";
+  head.append(label, selectAll, clear);
+  picker.append(head);
+
+  const sync = () => {
+    state.practice.selectedChapterKeys = Array.from(
+      picker.querySelectorAll("input[type=checkbox]")
+    )
+      .filter((input) => input.checked)
+      .map((input) => input.value);
+    setPracticeStatus(
+      practiceScopeStatus(),
+      state.practice.chapters.length === 0
+    );
+    updatePracticeStartState();
+  };
+
+  selectAll.addEventListener("click", () => {
+    picker
+      .querySelectorAll("input[type=checkbox]")
+      .forEach((input) => {
+        input.checked = true;
+      });
+    sync();
+  });
+  clear.addEventListener("click", () => {
+    picker
+      .querySelectorAll("input[type=checkbox]")
+      .forEach((input) => {
+        input.checked = false;
+      });
+    sync();
+  });
+
+  state.practice.chapters.forEach((chapter) => {
+    const item = document.createElement("label");
+    item.className = "chapter-picker__item";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = chapter.chapterKey;
+    input.checked = state.practice.selectedChapterKeys.includes(
+      chapter.chapterKey
+    );
+    input.addEventListener("change", sync);
+    const text = document.createElement("span");
+    text.textContent = `${chapter.chapterName || "未命名章节"}（${
+      chapter.questionCount || 0
+    } 题）`;
+    item.append(input, text);
+    picker.append(item);
+  });
+  updatePracticeScopeUi();
+}
+
 function setPracticeStatus(text, warning) {
   if (!ui.practiceStatus) return;
   ui.practiceStatus.textContent = text || "";
@@ -3053,6 +3173,9 @@ async function refreshPracticeSetup() {
   if (!store) {
     setPracticeStatus("本地题库存储不可用。", true);
     return;
+  }
+  if (ui.practiceScope) {
+    setSelectValue(ui.practiceScope, state.practice.scope || "chapter");
   }
   const result = await store.getCourses();
   if (!result.ok) {
@@ -3088,6 +3211,7 @@ async function loadPracticeChapters(courseKey) {
   const store = getQuestionStore();
   state.practice.chapters = [];
   state.practice.selectedChapterKey = "";
+  state.practice.selectedChapterKeys = [];
   fillSelect(
     ui.practiceChapter,
     [],
@@ -3095,7 +3219,10 @@ async function loadPracticeChapters(courseKey) {
     "chapterName",
     "选择章节"
   );
+  renderPracticeChapterPicker();
   if (!courseKey) {
+    if (ui.practiceChapter) ui.practiceChapter.disabled = true;
+    setPracticeStatus("请选择课程后再开始练习。", false);
     updatePracticeStartState();
     return;
   }
@@ -3119,51 +3246,126 @@ async function loadPracticeChapters(courseKey) {
   const chapterKey = state.practice.chapters[0]?.chapterKey || "";
   state.practice.selectedChapterKey = chapterKey;
   if (chapterKey) setSelectValue(ui.practiceChapter, chapterKey);
+  renderPracticeChapterPicker();
+  updatePracticeScopeUi();
   setPracticeStatus(
-    state.practice.chapters.length
-      ? `${state.practice.chapters.length} 个章节可练习。`
-      : "当前课程没有可练习章节。",
+    practiceScopeStatus(),
     state.practice.chapters.length === 0
   );
   updatePracticeStartState();
 }
 
 function updatePracticeStartState() {
-  if (ui.practiceStart) {
-    ui.practiceStart.disabled = !ui.practiceChapter?.value;
+  if (!ui.practiceStart) return;
+  const scope = getPracticeScope();
+  if (scope === "selected") {
+    ui.practiceStart.disabled =
+      state.practice.selectedChapterKeys.length === 0;
+    return;
   }
+  if (scope === "course") {
+    ui.practiceStart.disabled =
+      !state.practice.selectedCourseKey ||
+      state.practice.chapters.length === 0;
+    return;
+  }
+  ui.practiceStart.disabled = !ui.practiceChapter?.value;
 }
 
 async function startPracticeSession() {
   const store = getQuestionStore();
   const practice = getPracticeApi();
+  const scope = getPracticeScope();
+  const courseKey = ui.practiceCourse?.value;
   const chapterKey = ui.practiceChapter?.value;
-  if (!store || !practice || !chapterKey) {
-    setPracticeStatus("请选择有效章节后再开始。", true);
-    return;
-  }
-  const result = await store.getQuestions(chapterKey);
-  if (!result.ok) {
+  if (
+    !store ||
+    !practice ||
+    (scope === "chapter" && !chapterKey) ||
+    (scope === "selected" &&
+      state.practice.selectedChapterKeys.length === 0) ||
+    (scope === "course" && !courseKey)
+  ) {
     setPracticeStatus(
-      `${result.error.code}：${result.error.message}`,
+      scope === "course"
+        ? "请选择有效课程后再开始。"
+        : scope === "selected"
+        ? "请至少选择一个章节后再开始。"
+        : "请选择有效章节后再开始。",
       true
     );
     return;
   }
-  if (!result.questions.length) {
-    setPracticeStatus("当前章节没有已保存题目，无法练习。", true);
+
+  let questions = [];
+  let chapterCount = 0;
+  let scopeLabel = "按章节";
+  if (scope === "course") {
+    const result = await store.getCourseQuestions(courseKey);
+    if (!result.ok) {
+      setPracticeStatus(
+        `${result.error.code}：${result.error.message}`,
+        true
+      );
+      return;
+    }
+    questions = result.questions || [];
+    chapterCount = result.chapterCount || state.practice.chapters.length;
+    scopeLabel = `课程合并题库（${chapterCount} 个章节）`;
+  } else if (scope === "selected") {
+    const result = await store.getQuestionsByChapters(
+      state.practice.selectedChapterKeys
+    );
+    if (!result.ok) {
+      setPracticeStatus(
+        `${result.error.code}：${result.error.message}`,
+        true
+      );
+      return;
+    }
+    questions = result.questions || [];
+    chapterCount = result.chapterCount;
+    scopeLabel = `自选章节（${chapterCount} 个）`;
+  } else {
+    const result = await store.getQuestions(chapterKey);
+    if (!result.ok) {
+      setPracticeStatus(
+        `${result.error.code}：${result.error.message}`,
+        true
+      );
+      return;
+    }
+    questions = result.questions || [];
+    chapterCount = 1;
+    scopeLabel = "按章节";
+  }
+
+  if (!questions.length) {
+    setPracticeStatus(
+      scope === "course"
+        ? "当前课程没有已保存题目，无法练习。"
+        : "当前章节没有已保存题目，无法练习。",
+      true
+    );
     return;
   }
-  const session = practice.createSession(result.questions, {
+  const session = practice.createSession(questions, {
     mode: ui.practiceMode?.value || "sequential"
   });
   state.practice.session = session;
+  state.practice.scope = scope;
+  state.practice.scopeLabel = scopeLabel;
+  state.practice.chapterCount = chapterCount;
   state.practice.index = 0;
   state.practice.answers = [];
   state.practice.selection = [];
   state.practice.submitted = false;
   state.practice.startedAt = Date.now();
-  state.practice.selectedChapterKey = chapterKey;
+  state.practice.selectedChapterKey =
+    scope === "chapter" ? chapterKey : "";
+  clearPracticeAiStatus();
+  savePracticeResume();
+
 
   ui.practiceSetup.hidden = true;
   ui.practiceSummary.hidden = true;
@@ -3183,6 +3385,225 @@ function practiceSelectionFromInputs() {
   return inputs.map((input) => input.value).sort();
 }
 
+function setPracticeAiStatus(text, warning) {
+  if (!ui.practiceAiStatus) return;
+  ui.practiceAiStatus.hidden = !text;
+  ui.practiceAiStatus.textContent = text || "";
+  ui.practiceAiStatus.className = warning
+    ? "practice-ai-status practice-ai-status--warning"
+    : "practice-ai-status";
+}
+
+function clearPracticeAiStatus() {
+  setPracticeAiStatus("");
+  const old = document.getElementById("practice-ai-prompt");
+  if (old) old.remove();
+}
+
+async function copyTextForAi(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (error) {
+    // Fall through to the legacy copy path.
+  }
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.append(textarea);
+    textarea.select();
+    const copied = document.execCommand && document.execCommand("copy");
+    textarea.remove();
+    return Boolean(copied);
+  } catch (error) {
+    return false;
+  }
+}
+
+function openDeepSeek() {
+  const url = "https://chat.deepseek.com/";
+  if (hasExtensionApi() && chrome.tabs && chrome.tabs.create) {
+    chrome.tabs.create({ url });
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function showPracticePromptFallback(prompt) {
+  const old = document.getElementById("practice-ai-prompt");
+  if (old) old.remove();
+  if (!ui.practiceAiStatus) return;
+  const textarea = document.createElement("textarea");
+  textarea.id = "practice-ai-prompt";
+  textarea.className = "practice-ai-prompt";
+  textarea.readOnly = true;
+  textarea.value = prompt;
+  ui.practiceAiStatus.insertAdjacentElement("afterend", textarea);
+  textarea.focus();
+  textarea.select();
+}
+
+async function askPracticeDeepSeek() {
+  const question = practiceCurrentQuestion();
+  const practice = getPracticeApi();
+  if (!question || !practice || typeof practice.buildDeepSeekPrompt !== "function") {
+    setPracticeAiStatus("当前没有可发送的题目。", true);
+    return;
+  }
+  const prompt = practice.buildDeepSeekPrompt(question, {
+    courseName: question.courseName,
+    chapterName: question.chapterName
+  });
+  if (!prompt) {
+    setPracticeAiStatus(
+      "当前题目题干不可读，未发送。请先确认题目文字已正常显示。",
+      true
+    );
+    return;
+  }
+  const copied = await copyTextForAi(prompt);
+  openDeepSeek();
+  if (copied) {
+    setPracticeAiStatus(
+      "提示词已复制，已打开 DeepSeek。登录后按 Ctrl+V 粘贴并发送。",
+      false
+    );
+  } else {
+    setPracticeAiStatus(
+      "未能自动复制提示词。请手动复制下方内容，再到 DeepSeek 发送。",
+      true
+    );
+    showPracticePromptFallback(prompt);
+  }
+}
+
+function getPracticeResumeStore() {
+  const api = globalThis.PracticeResume;
+  if (!api) return null;
+  if (!state.practice.resumeStore) {
+    state.practice.resumeStore = api.createResumeStore({
+      storage: chrome.storage.local,
+      now: Date.now
+    });
+  }
+  return state.practice.resumeStore;
+}
+
+function buildPracticeResumeSnapshot() {
+  const session = state.practice.session;
+  if (!session || !Array.isArray(session.questions)) return null;
+  const current = session.questions[state.practice.index];
+  return {
+    schemaVersion: 1,
+    courseKey:
+      state.practice.selectedCourseKey ||
+      (current && current.courseKey) ||
+      null,
+    courseName: (current && current.courseName) || null,
+    scope: state.practice.scope || "chapter",
+    chapterKey:
+      (current && current.chapterKey) ||
+      state.practice.selectedChapterKey ||
+      null,
+    chapterName: (current && current.chapterName) || null,
+    selectedChapterKeys: state.practice.selectedChapterKeys || [],
+    mode: session.mode || "sequential",
+    chapterCount: state.practice.chapterCount || 0,
+    questions: session.questions,
+    index: state.practice.index,
+    answers: state.practice.answers,
+    selection: state.practice.selection,
+    submitted: state.practice.submitted,
+    startedAt: state.practice.startedAt
+  };
+}
+
+async function savePracticeResume() {
+  const store = getPracticeResumeStore();
+  const snapshot = buildPracticeResumeSnapshot();
+  if (!store || !snapshot) return;
+  const result = await store.save(snapshot);
+  if (result && result.ok) {
+    state.practice.resume = result.snapshot;
+    renderPracticeResumeBanner();
+  }
+}
+
+function renderPracticeResumeBanner() {
+  if (!ui.practiceResume) return;
+  const snapshot = state.practice.resume;
+  if (!snapshot || state.practice.session) {
+    ui.practiceResume.hidden = true;
+    return;
+  }
+  const scopeLabel =
+    snapshot.scope === "course"
+      ? "课程合并题库"
+      : snapshot.scope === "selected"
+      ? "自选章节"
+      : "按章节";
+  ui.practiceResumeText.textContent =
+    `${snapshot.courseName || "上次练习"} · ${scopeLabel} · ` +
+    `已答 ${snapshot.answers.length} / ${snapshot.total} 题 · ` +
+    `第 ${snapshot.index + 1} 题`;
+  ui.practiceResume.hidden = false;
+}
+
+async function loadPracticeResume() {
+  const store = getPracticeResumeStore();
+  if (!store) {
+    renderPracticeResumeBanner();
+    return;
+  }
+  const result = await store.load();
+  state.practice.resume =
+    result && result.ok ? result.snapshot : null;
+  renderPracticeResumeBanner();
+}
+
+function restorePracticeResume(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.questions)) return;
+  state.practice.session = {
+    mode: snapshot.mode,
+    questions: snapshot.questions.slice(),
+    total: snapshot.total
+  };
+  state.practice.index = snapshot.index;
+  state.practice.answers = Array.isArray(snapshot.answers)
+    ? snapshot.answers.slice()
+    : [];
+  state.practice.selection = Array.isArray(snapshot.selection)
+    ? snapshot.selection.slice()
+    : [];
+  state.practice.submitted = Boolean(snapshot.submitted);
+  state.practice.startedAt = snapshot.startedAt;
+  state.practice.scope = snapshot.scope;
+  state.practice.selectedChapterKeys = snapshot.selectedChapterKeys || [];
+  state.practice.selectedCourseKey = snapshot.courseKey || "";
+  state.practice.selectedChapterKey = snapshot.chapterKey || "";
+  state.practice.chapterCount = snapshot.chapterCount || 0;
+  state.practice.resume = snapshot;
+  if (ui.practiceScope) {
+    setSelectValue(ui.practiceScope, snapshot.scope);
+  }
+  ui.practiceSetup.hidden = true;
+  ui.practiceSummary.hidden = true;
+  ui.practiceSession.hidden = false;
+  renderPracticeQuestion();
+  renderPracticeResumeBanner();
+}
+
+async function discardPracticeResume() {
+  const store = getPracticeResumeStore();
+  if (store) await store.clear();
+  state.practice.resume = null;
+  renderPracticeResumeBanner();
+}
+
 function renderPracticeQuestion() {
   const question = practiceCurrentQuestion();
   const session = state.practice.session;
@@ -3197,7 +3618,13 @@ function renderPracticeQuestion() {
     } 题`;
   }
   if (ui.practiceProgressRemaining) {
-    ui.practiceProgressRemaining.textContent = `剩余 ${
+    const scopePrefix =
+      state.practice.scope === "course"
+        ? "合并题库 · "
+        : state.practice.scope === "selected"
+        ? "自选章节 · "
+        : "";
+    ui.practiceProgressRemaining.textContent = `${scopePrefix}剩余 ${
       session.total - index - 1
     } 题`;
   }
@@ -3241,6 +3668,7 @@ function renderPracticeQuestion() {
     }
     input.addEventListener("change", () => {
       state.practice.selection = practiceSelectionFromInputs();
+      savePracticeResume();
       Array.from(options.children).forEach((item) => {
         const field = item.querySelector("input");
         item.classList.toggle(
@@ -3323,6 +3751,7 @@ async function submitPracticeAnswer() {
     number: question.number
   };
   state.practice.submitted = true;
+  savePracticeResume();
   renderPracticeQuestion();
 }
 
@@ -3336,6 +3765,8 @@ function nextPracticeQuestion() {
   state.practice.index += 1;
   state.practice.selection = [];
   state.practice.submitted = false;
+  clearPracticeAiStatus();
+  savePracticeResume();
   renderPracticeQuestion();
 }
 
@@ -3359,10 +3790,12 @@ function finishPracticeSession() {
     `答案未知：${summary.unknown}\n` +
     `正确率：${summary.accuracy}%\n` +
     `用时：${Math.max(1, Math.round(summary.elapsedMs / 1000))} 秒`;
+  discardPracticeResume();
   state.practice.session = null;
 }
 
 function exitPractice() {
+  savePracticeResume();
   state.practice.session = null;
   state.practice.answers = [];
   state.practice.selection = [];
@@ -3370,10 +3803,21 @@ function exitPractice() {
   ui.practiceSession.hidden = true;
   ui.practiceSummary.hidden = true;
   ui.practiceSetup.hidden = false;
+  clearPracticeAiStatus();
   updatePracticeStartState();
 }
 
 function bindPracticeEvents() {
+  ui.practiceResumeContinue?.addEventListener("click", () => {
+    if (state.practice.resume) {
+      restorePracticeResume(state.practice.resume);
+    }
+  });
+  ui.practiceResumeDiscard?.addEventListener("click", () => {
+    discardPracticeResume().catch((error) =>
+      setPracticeStatus(error.message, true)
+    );
+  });
   ui.practiceRefresh?.addEventListener("click", () => {
     refreshPracticeSetup().catch((error) =>
       setPracticeStatus(error.message, true)
@@ -3384,6 +3828,18 @@ function bindPracticeEvents() {
     loadPracticeChapters(ui.practiceCourse.value).catch((error) =>
       setPracticeStatus(error.message, true)
     );
+  });
+  ui.practiceScope?.addEventListener("change", () => {
+    state.practice.scope = getPracticeScope();
+    updatePracticeScopeUi();
+    if (state.practice.scope === "selected") {
+      renderPracticeChapterPicker();
+    }
+    setPracticeStatus(
+      practiceScopeStatus(),
+      state.practice.chapters.length === 0
+    );
+    updatePracticeStartState();
   });
   ui.practiceChapter?.addEventListener("change", () => {
     state.practice.selectedChapterKey = ui.practiceChapter.value;
@@ -3397,6 +3853,11 @@ function bindPracticeEvents() {
   ui.practiceSubmit?.addEventListener("click", () => {
     submitPracticeAnswer().catch((error) =>
       setPracticeStatus(error.message, true)
+    );
+  });
+  ui.practiceAskAi?.addEventListener("click", () => {
+    askPracticeDeepSeek().catch((error) =>
+      setPracticeAiStatus(error.message, true)
     );
   });
   ui.practiceNext?.addEventListener("click", () => {
@@ -3514,6 +3975,7 @@ async function init() {
 
   bindLibraryEvents();
   bindPracticeEvents();
+  await loadPracticeResume();
 
   if (ui.openLibrary) {
     ui.openLibrary.addEventListener("click", (event) => {

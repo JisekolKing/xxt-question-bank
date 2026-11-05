@@ -311,6 +311,29 @@ test("目录章节名包含“测验”时仍可识别，不按页面名过滤",
   assert.strictEqual(result.chapterFrameStatus, "stable");
 });
 
+test("作业页使用作业标题作为分类名，并用 workId 生成稳定分类键", () => {
+  const workUrl =
+    "https://mooc1.chaoxing.com/mooc-ans/mooc2/work/view?courseId=266531733&classId=153174888&cpi=414949192&workId=56876045&answerId=57107450";
+  const data = snapshot(
+    '<div class="page-title">作业标题：Lecture1&amp;2</div>',
+    0
+  );
+  assert.strictEqual(data.workTitle, "Lecture1&2");
+  assert.strictEqual(data.catalog, null);
+
+  const result = Classifier.classify({
+    url: workUrl,
+    title: "作业详情",
+    frames: [data]
+  });
+  assert.strictEqual(result.chapterName, "Lecture1&2");
+  assert.strictEqual(result.chapterNameSource, "作业标题");
+  assert.strictEqual(result.chapterId, "work_56876045");
+  assert.strictEqual(result.chapterIdSource, "work");
+  assert.strictEqual(result.chapterIdStatus, "stable");
+  assert.strictEqual(result.chapterFrameStatus, "stable");
+});
+
 (async () => {
   let failed = 0;
   for (const item of tests) {

@@ -339,17 +339,36 @@
           <h2 class="recognizer__title" id="practice-title">模拟练习</h2>
           <button type="button" class="link-button" id="practice-refresh">刷新题库</button>
         </div>
-        <p class="library-status" id="practice-status">选择课程和章节后开始练习。</p>
+        <p class="library-status" id="practice-status">选择课程后，可按章节或合并本课程全部章节练习。</p>
+        <div class="practice-resume" id="practice-resume" hidden>
+          <div>
+            <strong>继续上次练习</strong>
+            <p id="practice-resume-text"></p>
+          </div>
+          <div class="row-actions">
+            <button type="button" class="secondary-button" id="practice-resume-continue">继续</button>
+            <button type="button" class="link-button" id="practice-resume-discard">放弃记录</button>
+          </div>
+        </div>
         <div class="library-selects">
           <label class="field-label">
             课程
             <select class="select" id="practice-course"></select>
           </label>
           <label class="field-label">
+            练习范围
+            <select class="select" id="practice-scope">
+              <option value="chapter">按章节</option>
+              <option value="selected">自选章节（可多选）</option>
+              <option value="course">课程合并题库</option>
+            </select>
+          </label>
+          <label class="field-label" id="practice-chapter-field">
             章节
             <select class="select" id="practice-chapter"></select>
           </label>
         </div>
+        <div class="chapter-picker" id="practice-chapter-picker" hidden></div>
         <label class="field-label">
           练习模式
           <select class="select" id="practice-mode">
@@ -376,10 +395,14 @@
           <button type="button" class="secondary-button" id="practice-next" hidden>
             下一题
           </button>
+          <button type="button" class="secondary-button" id="practice-ask-ai">
+            问 DeepSeek
+          </button>
           <button type="button" class="secondary-button" id="practice-quit">
             退出练习
           </button>
         </div>
+        <p class="practice-ai-status" id="practice-ai-status" hidden></p>
       </section>
 
       <section class="library-card" id="practice-summary" hidden>
@@ -409,6 +432,7 @@
   <script src="question-bank.js"></script>
   <script src="question-bank-storage.js"></script>
   <script src="practice.js"></script>
+  <script src="practice-resume.js"></script>
   <script src="../content/snapshot.js"></script>
   <script src="../content/question-parser.js"></script>
   <script src="popup.js"></script>

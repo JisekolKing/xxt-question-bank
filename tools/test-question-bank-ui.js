@@ -647,6 +647,100 @@ test("模拟练习可以答题、判分并生成总结", async () => {
   );
 });
 
+test("课程合并题库合并同一课程全部章节", async () => {
+  const { sandbox, document } = createSandbox();
+  const store = sandbox.getQuestionStore();
+  await store.saveOfficialQuestion(question(), context());
+  await store.saveOfficialQuestion(
+    question({
+      chapter: "2.9 题库02-002",
+      chapterId: "cur1231902407",
+      stem: "第二章节测试题干"
+    }),
+    context()
+  );
+  await sandbox.refreshPracticeSetup();
+  sandbox.setSelectValue(
+    document.getElementById("practice-scope"),
+    "course"
+  );
+  await sandbox.startPracticeSession();
+  assert.strictEqual(
+    document.getElementById("practice-session").hidden,
+    false
+  );
+  assert.match(
+    document.getElementById("practice-progress-text").textContent,
+    /1 \/ 2/
+  );
+});
+
+test("练习页可复制题目提示词并打开 DeepSeek", async () => {
+  const { sandbox, document } = createSandbox();
+  const store = sandbox.getQuestionStore();
+  await store.saveOfficialQuestion(question(), context());
+  await sandbox.refreshPracticeSetup();
+  await sandbox.startPracticeSession();
+  let copied = "";
+  let opened = "";
+  sandbox.navigator.clipboard = {
+    async writeText(value) {
+      copied = value;
+    }
+  };
+  sandbox.chrome.tabs = {
+    create({ url }) {
+      opened = url;
+    }
+  };
+  await sandbox.askPracticeDeepSeek();
+  assert.match(copied, /你是一名课程辅导老师/);
+  assert.match(copied, /UI 测试题干/);
+  assert.strictEqual(opened, "https://chat.deepseek.com/");
+  assert.match(
+    document.getElementById("practice-ai-status").textContent,
+    /提示词已复制/
+  );
+});
+
+test("自选章节模式可勾选多个章节", async () => {
+  const { sandbox, document, window } = createSandbox();
+  const store = sandbox.getQuestionStore();
+  await store.saveOfficialQuestion(question(), context());
+  await store.saveOfficialQuestion(
+    question({
+      chapter: "2.9 题库02-002",
+      chapterId: "cur1231902407",
+      stem: "多选章节第二题"
+    }),
+    context()
+  );
+  await sandbox.refreshPracticeSetup();
+  sandbox.setSelectValue(
+    document.getElementById("practice-scope"),
+    "selected"
+  );
+  const scopeSelect = document.getElementById("practice-scope");
+  const selectedScope = Array.from(scopeSelect.options).find(
+    (option) => option.value === "selected"
+  );
+  selectedScope.selected = true;
+  const picker = document.getElementById("practice-chapter-picker");
+  const inputs = Array.from(
+    picker.querySelectorAll("input[type=checkbox]")
+  );
+  assert.strictEqual(inputs.length, 2);
+  inputs.forEach((input) => {
+    input.checked = true;
+    input.dispatchEvent(new window.Event("change", { bubbles: true }));
+  });
+  await sandbox.startPracticeSession();
+  assert.match(
+    document.getElementById("practice-progress-text").textContent,
+    /1 \/ 2/
+  );
+});
+
 test("宽松保存可将跨 frame 题目写入并标记未验证", async () => {
   const { sandbox } = createSandbox();
   const data = {

@@ -182,6 +182,59 @@ test("正式题目保存和读取", async () => {
   assert.strictEqual(single.source, "official");
 });
 
+test("合并读取同一课程全部章节题目", async () => {
+  const mock = createMock();
+  const store = createStore(mock);
+  const first = await store.saveOfficialQuestion(question(), context());
+  await store.saveOfficialQuestion(
+    question({
+      chapter: "2.9 题库02-002",
+      chapterId: "cur1231902407",
+      stem: "第二章题目",
+      number: 1
+    }),
+    context()
+  );
+  await store.saveOfficialQuestion(
+    question({
+      chapter: "其他课程章节",
+      chapterId: "cur9999999999",
+      stem: "其他课程题目",
+      number: 1
+    }),
+    context({ courseId: "999999999", classId: "888888888" })
+  );
+  const result = await store.getCourseQuestions(first.courseKey);
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.chapterCount, 2);
+  assert.strictEqual(result.questions.length, 2);
+  assert.deepStrictEqual(
+    result.questions.map((item) => item.stem).sort(),
+    ["第二章题目", "存储题干"].sort()
+  );
+});
+
+test("按选中章节合并读取题目", async () => {
+  const mock = createMock();
+  const store = createStore(mock);
+  const first = await store.saveOfficialQuestion(question(), context());
+  const second = await store.saveOfficialQuestion(
+    question({
+      chapter: "2.9 题库02-002",
+      chapterId: "cur1231902407",
+      stem: "第二个章节题目"
+    }),
+    context()
+  );
+  const result = await store.getQuestionsByChapters([
+    first.chapterKey,
+    second.chapterKey
+  ]);
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.chapterCount, 2);
+  assert.strictEqual(result.questions.length, 2);
+});
+
 test("宽松保存可保存跨 frame 题目并标记未验证", async () => {
   const mock = createMock();
   const store = createStore(mock);
