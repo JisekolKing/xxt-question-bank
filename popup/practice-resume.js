@@ -25,9 +25,7 @@
   }
 
   function normalizeScope(value) {
-    return value === "course" || value === "selected"
-      ? value
-      : "chapter";
+    return value === "course" ? "course" : "selected";
   }
 
   function normalizeSnapshot(raw) {
@@ -45,17 +43,27 @@
       Number.isInteger(raw.index) && raw.index >= 0 && raw.index < total
         ? raw.index
         : 0;
+    const scope = normalizeScope(raw.scope);
+    let selectedChapterKeys = Array.isArray(raw.selectedChapterKeys)
+      ? raw.selectedChapterKeys.filter((key) => typeof key === "string")
+      : [];
+    if (
+      scope === "selected" &&
+      selectedChapterKeys.length === 0 &&
+      raw.scope === "chapter" &&
+      raw.chapterKey
+    ) {
+      selectedChapterKeys = [raw.chapterKey];
+    }
     return {
       schemaVersion: SCHEMA_VERSION,
       savedAt: Number.isFinite(raw.savedAt) ? raw.savedAt : 0,
       courseKey: raw.courseKey || null,
       courseName: raw.courseName || null,
-      scope: normalizeScope(raw.scope),
+      scope,
       chapterKey: raw.chapterKey || null,
       chapterName: raw.chapterName || null,
-      selectedChapterKeys: Array.isArray(raw.selectedChapterKeys)
-        ? raw.selectedChapterKeys.filter((key) => typeof key === "string")
-        : [],
+      selectedChapterKeys,
       mode: raw.mode === "random" ? "random" : "sequential",
       chapterCount: Number.isFinite(raw.chapterCount)
         ? raw.chapterCount

@@ -75,12 +75,11 @@
             <label class="field">
               <span>练习范围</span>
               <select id="practice-scope" class="select">
-                <option value="chapter">按章节</option>
-                <option value="selected">自选章节（可多选）</option>
+                <option value="selected" selected>自选章节（可多选）</option>
                 <option value="course">课程合并题库</option>
               </select>
             </label>
-            <label class="field" id="practice-chapter-field">
+            <label class="field" id="practice-chapter-field" hidden>
               <span>章节</span>
               <select id="practice-chapter" class="select"></select>
             </label>
@@ -104,7 +103,7 @@
               <button class="text-button" id="practice-resume-discard" type="button">放弃记录</button>
             </div>
           </div>
-          <p class="hint" id="practice-status">选择课程后，可按章节或合并本课程全部章节练习。</p>
+          <p class="hint" id="practice-status">选择课程后，可勾选章节或合并本课程全部章节练习。</p>
         </section>
 
         <section class="panel practice-session" id="practice-session" hidden>

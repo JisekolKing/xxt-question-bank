@@ -339,7 +339,7 @@
           <h2 class="recognizer__title" id="practice-title">模拟练习</h2>
           <button type="button" class="link-button" id="practice-refresh">刷新题库</button>
         </div>
-        <p class="library-status" id="practice-status">选择课程后，可按章节或合并本课程全部章节练习。</p>
+        <p class="library-status" id="practice-status">选择课程后，可勾选章节或合并本课程全部章节练习。</p>
         <div class="practice-resume" id="practice-resume" hidden>
           <div>
             <strong>继续上次练习</strong>
@@ -358,12 +358,11 @@
           <label class="field-label">
             练习范围
             <select class="select" id="practice-scope">
-              <option value="chapter">按章节</option>
-              <option value="selected">自选章节（可多选）</option>
+              <option value="selected" selected>自选章节（可多选）</option>
               <option value="course">课程合并题库</option>
             </select>
           </label>
-          <label class="field-label" id="practice-chapter-field">
+          <label class="field-label" id="practice-chapter-field" hidden>
             章节
             <select class="select" id="practice-chapter"></select>
           </label>

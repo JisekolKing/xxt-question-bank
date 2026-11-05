@@ -35,7 +35,7 @@ const state = {
     selectedCourseKey: "",
     selectedChapterKey: "",
     selectedChapterKeys: [],
-    scope: "chapter",
+    scope: "selected",
     session: null,
     index: 0,
     answers: [],
@@ -3057,7 +3057,7 @@ function getPracticeScope() {
     ? Array.from(select.options || []).find((option) => option.selected)
     : null;
   const value = (select && select.value) || (selected && selected.value);
-  return value === "course" || value === "selected" ? value : "chapter";
+  return value === "course" ? "course" : "selected";
 }
 
 function practiceScopeStatus() {

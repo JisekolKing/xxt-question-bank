@@ -19,7 +19,7 @@
     practice: {
       courses: [],
       chapters: [],
-      scope: "chapter",
+      scope: "selected",
       selectedChapterKeys: [],
       session: null,
       index: 0,
@@ -433,7 +433,7 @@
       (option) => option.selected
     );
     const value = select.value || (selected && selected.value);
-    return value === "course" || value === "selected" ? value : "chapter";
+    return value === "course" ? "course" : "selected";
   }
 
   function practiceStatusText() {

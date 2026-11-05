@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "学习通课程题库助手",
   "short_name": "题库助手",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "识别学习通章节题库与课程作业，关联章节身份和 frame 来源，读取已展示答案，并还原页面内嵌字体保护的文字。",
   "icons": {
     "16": "icons/icon16.png",

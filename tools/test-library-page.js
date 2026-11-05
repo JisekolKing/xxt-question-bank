@@ -146,6 +146,16 @@ function test(name, run) {
   tests.push({ name, run });
 }
 
+function selectFirstChapter(document, window) {
+  const input = document.querySelector(
+    "#practice-chapter-picker input[type=checkbox]"
+  );
+  if (!input) return false;
+  input.checked = true;
+  input.dispatchEvent(new window.Event("change", { bubbles: true }));
+  return true;
+}
+
 test("完整网页包含题库、练习、pending 和备份区域", () => {
   const scripts = Array.from(
     HTML.matchAll(/<script\s+src="([^"]+)"/g)
@@ -448,6 +458,7 @@ test("完整网页支持练习答题和总结", async () => {
   await new Promise((resolve) => setTimeout(resolve, 150));
   fresh.querySelector('[data-view="practice"]').click();
   await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.strictEqual(selectFirstChapter(fresh, freshWindow), true);
   fresh.getElementById("practice-start").click();
   await new Promise((resolve) => setTimeout(resolve, 30));
   const input = Array.from(

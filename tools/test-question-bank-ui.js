@@ -67,6 +67,16 @@ function createLocalStorage() {
   };
 }
 
+function selectFirstChapter(document, window) {
+  const input = document.querySelector(
+    "#practice-chapter-picker input[type=checkbox]"
+  );
+  if (!input) return false;
+  input.checked = true;
+  input.dispatchEvent(new window.Event("change", { bubbles: true }));
+  return true;
+}
+
 function createSandbox() {
   const { document, window } = parseHTML(HTML);
   window.confirm = () => true;
@@ -617,6 +627,7 @@ test("模拟练习可以答题、判分并生成总结", async () => {
   const store = sandbox.getQuestionStore();
   await store.saveOfficialQuestion(question(), context());
   await sandbox.refreshPracticeSetup();
+  assert.strictEqual(selectFirstChapter(document, window), true);
   await sandbox.startPracticeSession();
 
   assert.strictEqual(
@@ -676,10 +687,11 @@ test("课程合并题库合并同一课程全部章节", async () => {
 });
 
 test("练习页可复制题目提示词并打开 DeepSeek", async () => {
-  const { sandbox, document } = createSandbox();
+  const { sandbox, document, window } = createSandbox();
   const store = sandbox.getQuestionStore();
   await store.saveOfficialQuestion(question(), context());
   await sandbox.refreshPracticeSetup();
+  assert.strictEqual(selectFirstChapter(document, window), true);
   await sandbox.startPracticeSession();
   let copied = "";
   let opened = "";
